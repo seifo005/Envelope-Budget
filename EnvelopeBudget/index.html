@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ميزانية الأظرف — + ميزات</title>
+<style>
+  :root{
+    --bg:#0f172a; --fg:#e2e8f0; --muted:#94a3b8; --accent:#93c5fd;
+    --panel:#111827; --border:#1f2937; --chip-bg:#0b1220; --chip-border:#334155;
+    --tab-bg:#0b1325; --axis:#334155;
+    --ok:#16a34a; --warn:#ef4444; --info:#60a5fa;
+  }
+  [data-theme="light"]{
+    --bg:#f8fafc; --fg:#0f172a; --muted:#475569; --accent:#1d4ed8;
+    --panel:#ffffff; --border:#e2e8f0; --chip-bg:#f1f5f9; --chip-border:#e2e8f0;
+    --tab-bg:#f8fafc; --axis:#cbd5e1; --ok:#16a34a; --warn:#ef4444; --info:#2563eb;
+  }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans Arabic","Noto Naskh Arabic",Arial,sans-serif; margin:0; background:var(--bg); color:var(--fg); }
+  header{ position:sticky; top:0; z-index:15; background:color-mix(in oklab, var(--tab-bg) 92%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--border); padding:10px 14px; display:flex; gap:10px; align-items:center; justify-content:space-between; }
+  h1{ font-size:18px; margin:0; }
+  .header-actions{ display:flex; gap:8px; align-items:center; }
+  .toggle{ display:flex; gap:6px; align-items:center; font-size:12px; color:var(--muted); }
+  main{ padding:14px; }
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:10px; }
+  .row{ display:grid; grid-template-columns:1fr 120px 44px; gap:10px; align-items:center; }
+  label{ font-size:13px; color:var(--muted); display:block; margin-bottom:6px; }
+  input,select,textarea{ width:100%; padding:12px; border-radius:10px; border:1px solid var(--chip-border); background:var(--chip-bg); color:var(--fg); outline:none; }
+  input::placeholder, textarea::placeholder{ color:var(--muted); }
+  button{ width:100%; padding:12px; border-radius:10px; border:1px solid var(--chip-border); background:#1f2937; color:var(--fg); font-weight:600; }
+  button.primary{ background:var(--ok); border-color:var(--ok); color:#fff; }
+  button.warn{ background:var(--warn); border-color:var(--warn); color:#fff; }
+  .muted{ color:var(--muted); font-size:13px; }
+  .grid{ display:grid; gap:10px; }
+  .flex{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .chips{ display:flex; gap:6px; flex-wrap:wrap; }
+  .chip{ background:var(--chip-bg); border:1px solid var(--chip-border); padding:6px 10px; border-radius:999px; font-size:12px; }
+  .table{ width:100%; border-collapse:collapse; overflow:auto; }
+  .table th,.table td{ text-align:right; padding:8px; border-bottom:1px solid var(--border); }
+  .table th{ color:var(--accent); font-weight:600; }
+  .tabs{ display:grid; grid-template-columns:repeat(5,1fr); border-top:1px solid var(--border); position:sticky; bottom:0; z-index:10; }
+  .tabs button{ border-radius:0; padding:12px 6px; background:var(--tab-bg); border-left:1px solid var(--border); }
+  .tabs button.active{ background:#1e293b22; color:var(--accent); }
+  .hidden{ display:none; }
+  .kicker{ font-size:12px; color:#60a5fa; }
+  canvas{ width:100%; height:240px; background:var(--chip-bg); border:1px solid var(--border); border-radius:10px; }
+  .del{ width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; border-radius:10px; border:1px solid #374151; background:#1f2937; color:#fca5a5; font-size:20px; line-height:1; }
+  .sum-ok{ color:#22c55e; } .sum-bad{ color:#ef4444; }
+  .global-bar{ position:sticky; bottom:48px; z-index:12; background:color-mix(in oklab, var(--tab-bg) 92%, transparent); backdrop-filter:blur(8px); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:10px 14px; text-align:center; font-weight:600; }
+  .global-bar .amount{ color:var(--accent); }
+  .pill{ display:inline-block; padding:4px 8px; border-radius:999px; border:1px solid var(--chip-border); background:var(--chip-bg); font-size:12px; margin-inline-start:6px; }
+  .mini{ padding:6px 10px; font-size:12px; width:auto; }
+  .row-backup{ display:flex; align-items:center; gap:8px; justify-content:space-between; border:1px solid var(--border); border-radius:10px; padding:8px 10px; background:var(--chip-bg); margin-bottom:8px; }
+  .row-backup .meta{ font-size:12px; color:var(--muted); }
+  /* Floating Quick Add */
+  .fab{ position:fixed; right:16px; bottom:80px; width:54px; height:54px; border-radius:50%; background:var(--ok); color:#fff; font-size:28px; display:flex; align-items:center; justify-content:center; z-index:20; border:none; box-shadow:0 6px 16px #0004; }
+  .modal{ position:fixed; inset:0; background:#0008; display:none; align-items:center; justify-content:center; z-index:30; }
+  .modal .dialog{ width:min(520px,92vw); background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; }
+
+/* === Patch: layout fixes for Status tab (safe & minimal) === */
+canvas { display:block; width:100%; height:260px; max-width:100%; }
+main { padding-bottom: 180px; } /* keep content above sticky bottom bar */
+.chips, #pie-legend { display:flex; flex-wrap:wrap; gap:6px; }
+.pill, .chip, .table th, .table td { white-space:normal; word-break:break-word; }
+/* === End Patch === */
+
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>📦 ميزانية الأظرف</h1>
+    <div class="muted">قسّم الدخل تلقائيًا، واصرف واتبّع الرصيد بسهولة على هاتفك</div>
+  </div>
+  <div class="header-actions">
+    <div class="toggle">
+      🌗 النمط
+      <select id="theme-toggle">
+        <option value="dark">داكن</option>
+        <option value="light">فاتح</option>
+      </select>
+    </div>
+  </div>
+</header>
+
+<main class="grid">
+  <!-- Setup -->
+  <section id="tab-setup" class="card">
+    <div class="kicker">التهيئة وتعديل النِّسب</div>
+    <div class="grid" style="margin-top:10px">
+      <div class="flex">
+        <div style="flex:1">
+          <label>العملة</label>
+          <input id="currency" placeholder="DZD">
+        </div>
+        <div style="flex:1">
+          <label>حد تنبيه الرصيد المنخفض (للفئة)</label>
+          <input id="low-threshold" type="number" inputmode="decimal" placeholder="مثال: 5000">
+        </div>
+      </div>
+
+      <div class="flex">
+        <div class="chip">مجموع النِّسب: <span id="sumPct">0</span>%</div>
+        <div id="sumState" class="chip">ينبغي أن يساوي 100%</div>
+      </div>
+
+      <label>الفئات بالنِّسب (المجموع يجب أن يساوي 100%)</label>
+      <div id="cats" class="grid"></div>
+      <div class="flex">
+        <button onclick="addCatRow()">➕ إضافة فئة</button>
+        <button id="saveBtn" class="primary" onclick="saveInitial()">حفظ النِّسب</button>
+      </div>
+      <div class="muted">نصيحة: احذف الفئة من زر 🗑️ يمين السطر. احرص أن يكون المجموع 100% قبل الحفظ.</div>
+    </div>
+  </section>
+
+  <!-- Add Income -->
+  <section id="tab-income" class="card hidden">
+    <div class="kicker">إضافة دخل</div>
+    <div class="grid" style="margin-top:10px">
+      <div class="grid">
+        <div class="flex" style="gap:10px">
+          <div style="flex:1">
+            <label>قيمة الدخل</label>
+            <input id="income-amount" type="number" inputmode="decimal" placeholder="مثال: 100000">
+          </div>
+          <div style="flex:1">
+            <label>مصدر الدخل</label>
+            <input id="income-source" placeholder="راتب / مشروع / أخرى">
+          </div>
+        </div>
+        <label>ملاحظة (اختياري)</label>
+        <input id="income-note" placeholder="دخل أكتوبر">
+      </div>
+      <button class="primary" onclick="addIncome()">توزيع الدخل حسب النِّسب</button>
+      <div id="income-result" class="muted"></div>
+    </div>
+  </section>
+
+  <!-- Spend -->
+  <section id="tab-spend" class="card hidden">
+    <div class="kicker">صرف من فئة</div>
+    <div class="grid" style="margin-top:10px">
+      <div class="flex" style="gap:10px">
+        <div style="flex:1">
+          <label>الفئة</label>
+          <select id="spend-cat"></select>
+        </div>
+        <div style="flex:1">
+          <label>المبلغ</label>
+          <input id="spend-amount" type="number" inputmode="decimal" placeholder="مثال: 3500">
+        </div>
+      </div>
+      <div class="flex" style="gap:10px">
+        <div style="flex:1">
+          <label>تصنيف المصروف</label>
+          <select id="spend-tag">
+            <option value="">—</option>
+            <option value="essential">ضروري</option>
+            <option value="discretionary">ترفيهي</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>ملاحظة (اختياري)</label>
+          <input id="spend-note" placeholder="مشتريات أسبوع">
+        </div>
+      </div>
+      <button class="primary" onclick="spend()">خصم المبلغ</button>
+      <div id="spend-result" class="muted"></div>
+    </div>
+  </section>
+
+  <!-- Transfer -->
+  <section id="tab-transfer" class="card hidden">
+    <div class="kicker">تحويل بين الفئات</div>
+    <div class="grid" style="margin-top:10px">
+      <div class="flex" style="gap:10px">
+        <div style="flex:1">
+          <label>من (المصدر)</label>
+          <select id="transfer-src"></select>
+        </div>
+        <div style="flex:1">
+          <label>إلى (الوجهة)</label>
+          <select id="transfer-dst"></select>
+        </div>
+      </div>
+      <label>المبلغ</label>
+      <input id="transfer-amount" type="number" inputmode="decimal" placeholder="2000">
+      <label>ملاحظة (اختياري)</label>
+      <input id="transfer-note" placeholder="تعزيز ظرف البيت">
+      <button class="primary" onclick="transfer()">تنفيذ التحويل</button>
+      <div id="transfer-result" class="muted"></div>
+    </div>
+  </section>
+
+  <!-- Status & History -->
+  <section id="tab-status" class="card hidden">
+    <div class="kicker">الحالة والسجل</div>
+    <div class="grid" style="margin-top:10px">
+      <div class="flex">
+        <div>
+          <label>الشهر</label>
+          <input id="month-picker" type="month">
+        </div>
+        <div class="chips" id="tag-filters" style="margin-top:22px">
+          <span class="chip" data-tag="all" onclick="setTagFilter('all')">الكل</span>
+          <span class="chip" data-tag="essential" onclick="setTagFilter('essential')">ضروري</span>
+          <span class="chip" data-tag="discretionary" onclick="setTagFilter('discretionary')">ترفيهي</span>
+        </div>
+        <div style="margin-inline-start:auto; align-self:flex-end;">
+          <button class="mini" onclick="undoLast()">↩️ تراجع (آخر عملية)</button>
+        </div>
+      </div>
+
+      <div id="status"></div>
+
+      <div class="grid">
+        <div class="muted">ملخص الشهر المحدد</div>
+        <div id="monthly-summary" class="chips"></div>
+      </div>
+
+      <div class="grid">
+        <div class="muted">توزيع مصروفات هذا الشهر حسب الفئة</div>
+        <canvas id="chart-pie"></canvas>
+        <div id="pie-legend" class="chips"></div>
+      </div>
+
+      <div class="grid">
+        <div class="muted">مخطط الأرصدة الحالية حسب الفئة</div>
+        <canvas id="chart-balances"></canvas>
+      </div>
+
+      <div class="grid">
+        <div class="muted">مخطط شهري للدخل والمصروفات</div>
+        <canvas id="chart-monthly"></canvas>
+      </div>
+
+      <!-- BACKUP -->
+      <div class="grid">
+        <div class="muted">النسخ الاحتياطي</div>
+        <div class="grid" id="backup-ui">
+          <div class="flex">
+            <div style="flex:1">
+              <label>النسخ الاحتياطي التلقائي</label>
+              <select id="backup-frequency">
+                <option value="off">إيقاف</option>
+                <option value="weekly">أسبوعي</option>
+                <option value="monthly">شهري</option>
+              </select>
+            </div>
+            <div style="flex:1">
+              <label>آخر نسخة احتياطية</label>
+              <input id="backup-last" disabled placeholder="—">
+            </div>
+          </div>
+          <div class="flex">
+            <button class="primary" onclick="backupNow()">إنشاء نسخة الآن</button>
+            <button onclick="copyJSON()">نسخ JSON إلى الحافظة</button>
+          </div>
+          <div class="muted">النسخ تحفظ محليًا على هاتفك (localStorage). يحتفظ التطبيق بآخر 12 نسخة.</div>
+          <div id="backup-list"></div>
+        </div>
+      </div>
+
+      <hr style="border:0;border-top:1px solid var(--border)">
+      <div class="flex">
+        <button onclick="exportJSON()">📤 تصدير البيانات (JSON)</button>
+        <button onclick="exportCSV()">📤 تصدير السجل (CSV)</button>
+        <input type="file" id="import-file" accept=".json" style="display:none" onchange="importJSON(event)">
+        <button class="warn" onclick="document.getElementById('import-file').click()">📥 استيراد بيانات (JSON)</button>
+      </div>
+      <div id="history"></div>
+    </div>
+  </section>
+</main>
+
+<div id="global-bar" class="global-bar">💰 الرصيد الكلي: <span class="amount" id="global-total">0</span> <span id="global-currency">DZD</span></div>
+
+<nav class="tabs">
+  <button data-tab="setup" class="active" onclick="showTab('setup')">التهيئة</button>
+  <button data-tab="income" onclick="showTab('income')">دخل</button>
+  <button data-tab="spend" onclick="showTab('spend')">صرف</button>
+  <button data-tab="transfer" onclick="showTab('transfer')">تحويل</button>
+  <button data-tab="status" onclick="showTab('status')">حالة</button>
+</nav>
+
+<button class="fab" onclick="openQuick()">＋</button>
+<div class="modal" id="quick-modal">
+  <div class="dialog">
+    <div class="kicker">إضافة سريعة</div>
+    <div class="grid" style="margin-top:10px">
+      <div class="flex">
+        <div style="flex:1">
+          <label>الفئة</label>
+          <select id="quick-cat"></select>
+        </div>
+        <div style="flex:1">
+          <label>المبلغ</label>
+          <input id="quick-amt" type="number" inputmode="decimal" placeholder="مثال: 2000">
+        </div>
+      </div>
+      <div class="flex">
+        <div style="flex:1">
+          <label>تصنيف</label>
+          <select id="quick-tag">
+            <option value="">—</option>
+            <option value="essential">ضروري</option>
+            <option value="discretionary">ترفيهي</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <label>ملاحظة</label>
+          <input id="quick-note" placeholder="ملاحظة">
+        </div>
+      </div>
+      <div class="flex">
+        <button class="primary" onclick="quickSpend()">صرف سريع</button>
+        <button onclick="closeQuick()">إلغاء</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const LS_KEY = "envelope_budget_v1";
+  const LS_CFG = "envelope_budget_cfg_v2";
+  const LS_BKP_INDEX = "envelope_budget_backup_index_v1";
+  const LS_BKP_PREFIX = "envelope_budget_backup_v1_";
+  let currentTagFilter = "all";
+
+  function load(){ const raw=localStorage.getItem(LS_KEY); if(!raw) return null; try{return JSON.parse(raw);}catch{return null;} }
+  function save(data){ localStorage.setItem(LS_KEY, JSON.stringify(data)); }
+
+  function loadCfg(){
+    const raw = localStorage.getItem(LS_CFG);
+    if(!raw) return { autoBackup:"off", lastBackupTs:"", lowThreshold:0, theme:"dark" };
+    try { const c = JSON.parse(raw); return Object.assign({autoBackup:"off", lastBackupTs:"", lowThreshold:0, theme:"dark"}, c||{}); } catch { return { autoBackup:"off", lastBackupTs:"", lowThreshold:0, theme:"dark" }; }
+  }
+  function saveCfg(cfg){ localStorage.setItem(LS_CFG, JSON.stringify(cfg||{autoBackup:"off",lastBackupTs:"",lowThreshold:0,theme:"dark"})); }
+
+  function defaultData(){ return { currency:"DZD", categories:{}, transactions:[] }; }
+  function ensureData(){ let d=load(); if(!d){ d=defaultData(); save(d);} return d; }
+  function nowIso(){ const d=new Date(); return d.toISOString().slice(0,19); }
+  function monthKey(ts){ if(!ts) return ""; const d=new Date(ts); if(isNaN(d)) return (ts||"").slice(0,7); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+  function currentMonthKey(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+
+  // Backups
+  function listBackups(){ try{ return JSON.parse(localStorage.getItem(LS_BKP_INDEX)||"[]")||[]; }catch{return [];} }
+  function saveBackupIndex(arr){ localStorage.setItem(LS_BKP_INDEX, JSON.stringify(arr||[])); }
+  function createBackup(label){
+    const data=ensureData(); const ts=nowIso();
+    const payload={ ts, label:label||"", data };
+    const key=LS_BKP_PREFIX+ts;
+    localStorage.setItem(key, JSON.stringify(payload));
+    const idx=listBackups(); idx.push({key,ts,label:label||""});
+    idx.sort((a,b)=>a.ts.localeCompare(b.ts));
+    while(idx.length>12){ const rm=idx.shift(); try{ localStorage.removeItem(rm.key); }catch{} }
+    saveBackupIndex(idx);
+    const cfg=loadCfg(); cfg.lastBackupTs=ts; saveCfg(cfg);
+    return ts;
+  }
+  function getBackup(key){ try{ return JSON.parse(localStorage.getItem(key)||"null"); }catch{return null;} }
+  function deleteBackup(key){ localStorage.removeItem(key); saveBackupIndex(listBackups().filter(x=>x.key!==key)); }
+  function restoreBackup(key){ const b=getBackup(key); if(!b||!b.data) throw new Error("نسخة غير صالحة"); localStorage.setItem(LS_KEY, JSON.stringify(b.data)); }
+  function shouldAutoBackup(){ const cfg=loadCfg(); if(cfg.autoBackup==="off") return false; const last=cfg.lastBackupTs?new Date(cfg.lastBackupTs):null; const now=new Date(); const ms=now-(last||0); if(cfg.autoBackup==="weekly") return !last||ms>7*24*3600*1000; if(cfg.autoBackup==="monthly") return !last||ms>30*24*3600*1000; return false; }
+  function maybeAutoBackup(){ if(shouldAutoBackup()){ createBackup("نسخ تلقائي"); renderBackupUI(); } }
+  function renderBackupUI(){
+    const cfg=loadCfg(); const sel=document.getElementById("backup-frequency"); const last=document.getElementById("backup-last");
+    if(sel) sel.value = cfg.autoBackup||"off"; if(last) last.value = cfg.lastBackupTs||"—";
+    const list=listBackups().slice().sort((a,b)=>b.ts.localeCompare(a.ts)); const cont=document.getElementById("backup-list");
+    if(!cont) return;
+    if(!list.length){ cont.innerHTML='<div class="muted">لا توجد نسخ محفوظة بعد.</div>'; return; }
+    let html=""; list.forEach(item=>{ const size=(localStorage.getItem(item.key)||"").length; const kb=Math.round(size/1024);
+      html += `<div class="row-backup"><div><div><strong>📦 ${item.ts}</strong> ${item.label?`<span class='pill'>${item.label}</span>`:""}</div><div class="meta">الحجم ~ ${kb} KB</div></div>
+      <div class="flex" style="gap:6px"><button class="mini" onclick="downloadBackup('${item.key}')">تنزيل</button><button class="mini" onclick="doRestore('${item.key}')">استعادة</button><button class="mini warn" onclick="doDeleteBackup('${item.key}')">حذف</button></div></div>`;
+    }); cont.innerHTML=html;
+  }
+  function downloadBackup(key){ const b=getBackup(key); if(!b) return alert("النسخة غير موجودة"); const blob=new Blob([JSON.stringify(b)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="envelope_backup_"+(b.ts||"")+".json"; a.click(); URL.revokeObjectURL(a.href); }
+  function doRestore(key){ if(!confirm("هل أنت متأكد من استعادة هذه النسخة؟ سيجري استبدال البيانات الحالية.")) return; try{ restoreBackup(key); renderAll(); alert("تمت الاستعادة بنجاح ✅"); }catch(e){ alert("فشل الاستعادة: "+e.message); } }
+  function doDeleteBackup(key){ if(!confirm("حذف هذه النسخة الاحتياطية؟")) return; deleteBackup(key); renderBackupUI(); }
+  function backupNow(){ const ts=createBackup("نسخ يدوي"); renderBackupUI(); alert("تم إنشاء نسخة احتياطية: "+ts); }
+  function copyJSON(){ try{ const d=ensureData(); const text=JSON.stringify(d); if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(()=>alert("تم نسخ JSON إلى الحافظة ✅")); } else { const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta); alert("تم النسخ ✅"); } }catch(e){ alert("تعذّر النسخ: "+e.message); } }
+  function onBackupFreqChange(){ const sel=document.getElementById("backup-frequency"); const cfg=loadCfg(); cfg.autoBackup=sel?sel.value:"off"; saveCfg(cfg); renderBackupUI(); }
+
+  // Theme
+  function applyTheme(){ const cfg=loadCfg(); document.documentElement.setAttribute("data-theme", cfg.theme||"dark"); const sel=document.getElementById("theme-toggle"); if(sel) sel.value = cfg.theme||"dark"; }
+  function onThemeChange(){ const sel=document.getElementById("theme-toggle"); const cfg=loadCfg(); cfg.theme = sel? sel.value : "dark"; saveCfg(cfg); applyTheme(); }
+
+  // UI helpers
+  function refreshSelectors(){
+    const d=ensureData(); const names=Object.keys(d.categories);
+    ["spend-cat","transfer-src","transfer-dst","quick-cat"].forEach(id=>{ const sel=document.getElementById(id); if(!sel) return; sel.innerHTML=""; names.forEach(n=>{ const o=document.createElement("option"); o.value=n; o.textContent=n; sel.appendChild(o); }); });
+  }
+  function addCatRow(name="", pct=""){
+    const wrap=document.getElementById("cats"); const row=document.createElement("div"); row.className="row";
+    row.innerHTML = `<div><input placeholder="اسم الفئة (مثال: ادخار)" value="${name}"></div>
+      <div><input type="number" inputmode="decimal" min="0" step="0.01" placeholder="نسبة %" value="${pct}" oninput="recalcSum()"></div>
+      <button class="del" title="حذف" onclick="deleteCatRow(this)">🗑️</button>`;
+    wrap.appendChild(row); recalcSum();
+  }
+  function deleteCatRow(btn){
+    const row=btn.closest(".row"); const name=row.querySelector("input").value.trim(); const d=ensureData(); const balance = name && d.categories[name] ? (d.categories[name].balance||0) : 0;
+    if(balance>0){ const others=Object.keys(d.categories).filter(n=>n!==name); if(others.length===0){ if(!confirm(`الفئة '${name}' فيها رصيد ${balance.toFixed(2)} ${d.currency} ولا توجد فئة أخرى للتحويل. هل تريد حذفها وخسارة الرصيد؟`)) return; } else { const choice=prompt(`الفئة '${name}' فيها رصيد ${balance.toFixed(2)} ${d.currency}.\nاكتب اسم الفئة الوجهة من: ${others.join(", ")}\n(أو اتركه فارغًا للإلغاء)`); if(!choice) return; const dest=choice.trim(); if(!others.includes(dest)){ alert("اسم الوجهة غير صحيح. لم يتم الحذف."); return; } d.categories[dest].balance=Math.round((d.categories[dest].balance+balance)*100)/100; d.transactions.push({ ts:nowIso(), type:"TRANSFER", amount:balance, category:name, other:dest, note:"ترحيل رصيد عند حذف فئة" }); save(d); alert(`تم تحويل ${balance.toFixed(2)} إلى '${dest}'.`); } }
+    row.remove(); if(name&&d.categories[name]){ delete d.categories[name]; save(d); } refreshSelectors(); renderAll(); recalcSum();
+  }
+  function recalcSum(){
+    const rows=[...document.querySelectorAll("#cats .row")]; let total=0; rows.forEach(r=>{ const val=parseFloat(r.querySelectorAll("input")[1].value); if(!isNaN(val)&&val>=0) total+=val; });
+    const sumPct=document.getElementById("sumPct"), sumState=document.getElementById("sumState"), saveBtn=document.getElementById("saveBtn");
+    sumPct.textContent=(Math.round(total*100)/100).toString();
+    if(Math.abs(total-100)<0.0001){ sumState.textContent="✔️ المجموع صحيح = 100%"; sumState.className="chip sum-ok"; saveBtn.disabled=false; } else { sumState.textContent="❗ يجب أن يساوي المجموع 100%"; sumState.className="chip sum-bad"; saveBtn.disabled=true; }
+  }
+  function saveInitial(){
+    const currency=document.getElementById("currency").value.trim()||"DZD"; const low=parseFloat(document.getElementById("low-threshold").value||"0");
+    const rows=[...document.querySelectorAll("#cats .row")]; const cats={};
+    rows.forEach(r=>{ const [nEl,pEl]=r.querySelectorAll("input"); const name=(nEl.value||"").trim(); let pct=parseFloat((pEl.value||"0").trim()); if(isNaN(pct)||pct<0) pct=0; if(name) cats[name]={ percent:pct, balance:(ensureData().categories[name]?.balance||0) }; });
+    const total=Object.values(cats).reduce((a,c)=>a+(c.percent||0),0); if(Math.abs(total-100)>0.0001){ alert(`مجموع النِّسَب = ${total} وليس 100. عدّل النسب ثم احفظ.`); return; }
+    const d=ensureData(); d.currency=currency; d.categories=cats; save(d);
+    const cfg=loadCfg(); cfg.lowThreshold = isNaN(low)?0:low; saveCfg(cfg);
+    refreshSelectors(); renderAll(); alert("تم حفظ الإعدادات والنِّسب ✅");
+  }
+
+  // Business logic
+  function splitAmountByPercent(amount, cats){ const names=Object.keys(cats); if(!names.length) return {}; let totalAssigned=0; let largest=names[0]; const shares={}; names.forEach(n=>{ if(cats[n].percent>cats[largest].percent) largest=n; }); names.forEach(n=>{ const share=Math.round(amount*(cats[n].percent/100)*100)/100; shares[n]=share; totalAssigned+=share; }); const remainder=Math.round((amount-totalAssigned)*100)/100; shares[largest]=Math.round((shares[largest]+remainder)*100)/100; return shares; }
+  function addIncome(){
+    const amt=parseFloat(document.getElementById("income-amount").value||"0"); const note=document.getElementById("income-note").value||""; const source=document.getElementById("income-source").value||"";
+    if(!(amt>0)){ alert("أدخل مبلغًا صحيحًا"); return; }
+    const d=ensureData(); if(!Object.keys(d.categories).length){ alert("أضف الفئات أولًا من صفحة التهيئة"); return; }
+    const shares=splitAmountByPercent(amt, d.categories); for(const n in shares){ d.categories[n].balance=Math.round((d.categories[n].balance+shares[n])*100)/100; }
+    d.transactions.push({ ts:nowIso(), type:"INCOME", amount:amt, category:"", other:"", note, source, dist:shares });
+    save(d);
+    const cur=d.currency; const lines=Object.entries(shares).map(([n,v])=>`• ${n}: +${v.toFixed(2)} ${cur}`).join("<br>"); document.getElementById("income-result").innerHTML=`تم التوزيع:<br>${lines}`;
+    renderAll(); document.getElementById("income-amount").value=""; document.getElementById("income-note").value=""; document.getElementById("income-source").value="";
+  }
+  function spend(){
+    const cat=document.getElementById("spend-cat").value; const amt=parseFloat(document.getElementById("spend-amount").value||"0"); const note=document.getElementById("spend-note").value||""; const tag=document.getElementById("spend-tag").value||"";
+    if(!(amt>0)){ alert("أدخل مبلغًا صحيحًا"); return; }
+    const d=ensureData(); if(!d.categories[cat]){ alert("الفئة غير موجودة"); return; }
+    if(d.categories[cat].balance<amt){ if(!confirm("الرصيد غير كافٍ. هل تريد المتابعة وجعل الرصيد سالبًا؟")) return; }
+    d.categories[cat].balance=Math.round((d.categories[cat].balance-amt)*100)/100;
+    d.transactions.push({ ts:nowIso(), type:"SPEND", amount:amt, category:cat, other:"", note, tag });
+    save(d);
+    const cfg=loadCfg(); if(cfg.lowThreshold>0 && d.categories[cat].balance < cfg.lowThreshold){ alert(`تنبيه: رصيد '${cat}' أصبح منخفضًا (${d.categories[cat].balance}) أقل من الحد ${cfg.lowThreshold}`); }
+    document.getElementById("spend-result").textContent=`تم الخصم من '${cat}'. الرصيد الحالي: ${d.categories[cat].balance.toFixed(2)} ${d.currency}`;
+    renderAll(); document.getElementById("spend-amount").value=""; document.getElementById("spend-note").value="";
+  }
+  function transfer(){
+    const src=document.getElementById("transfer-src").value; const dst=document.getElementById("transfer-dst").value; const amt=parseFloat(document.getElementById("transfer-amount").value||"0"); const note=document.getElementById("transfer-note").value||"";
+    if(src===dst){ alert("اختر مصدرًا ووجهة مختلفين"); return; } if(!(amt>0)){ alert("أدخل مبلغًا صحيحًا"); return; }
+    const d=ensureData(); if(!d.categories[src]||!d.categories[dst]){ alert("تأكد من الفئات"); return; } if(d.categories[src].balance<amt){ if(!confirm("الرصيد غير كافٍ في المصدر. متابعة؟")) return; }
+    d.categories[src].balance=Math.round((d.categories[src].balance-amt)*100)/100; d.categories[dst].balance=Math.round((d.categories[dst].balance+amt)*100)/100;
+    d.transactions.push({ ts:nowIso(), type:"TRANSFER", amount:amt, category:src, other:dst, note });
+    save(d); document.getElementById("transfer-result").textContent=`تم تحويل ${amt.toFixed(2)} من '${src}' إلى '${dst}'.`; renderAll(); document.getElementById("transfer-amount").value=""; document.getElementById("transfer-note").value="";
+  }
+
+  // Undo last transaction
+  function undoLast(){
+    const d=ensureData(); if(!d.transactions.length){ alert("لا توجد عمليات للتراجع."); return; }
+    const t = d.transactions[d.transactions.length-1];
+    try{
+      if(t.type==="INCOME"){
+        const dist = t.dist || null;
+        if(!dist){ throw new Error("لا توجد تفاصيل توزيع للدخل الأخير، لا يمكن التراجع تلقائيًا."); }
+        for(const n in dist){ if(!d.categories[n]) continue; d.categories[n].balance = Math.round((d.categories[n].balance - dist[n])*100)/100; }
+      } else if(t.type==="SPEND"){
+        if(d.categories[t.category]) d.categories[t.category].balance = Math.round((d.categories[t.category].balance + t.amount)*100)/100;
+      } else if(t.type==="TRANSFER"){
+        if(d.categories[t.category]) d.categories[t.category].balance = Math.round((d.categories[t.category].balance + t.amount)*100)/100;
+        if(d.categories[t.other])    d.categories[t.other].balance    = Math.round((d.categories[t.other].balance - t.amount)*100)/100;
+      }
+      d.transactions.pop();
+      save(d);
+      renderAll();
+      alert("تم التراجع عن آخر عملية ✅");
+    }catch(e){
+      alert("تعذّر التراجع: " + e.message);
+    }
+  }
+
+  // Rendering
+  function renderGlobalBar(){ const d=ensureData(); const total=Object.values(d.categories).reduce((a,c)=>a+(c.balance||0),0); const cur=d.currency||"DZD"; const totalEl=document.getElementById("global-total"); const curEl=document.getElementById("global-currency"); if(totalEl) totalEl.textContent=(Math.round(total*100)/100).toLocaleString(); if(curEl) curEl.textContent=cur; }
+  function selectedMonth(){ const inp=document.getElementById("month-picker"); return (inp && inp.value) ? inp.value : currentMonthKey(); }
+  function renderMonthlySummary(){
+    const d=ensureData(); const k=selectedMonth(); let inc=0, sp=0; const byCat={};
+    d.transactions.forEach(t=>{ if(monthKey(t.ts)!==k) return; if(t.type==="INCOME") inc+=t.amount; if(t.type==="SPEND"){ if(currentTagFilter!=="all" && t.tag!==currentTagFilter) return; sp+=t.amount; byCat[t.category]=(byCat[t.category]||0)+t.amount; } });
+    const net=Math.round((inc-sp)*100)/100; const cur=d.currency; const topCat=Object.keys(byCat).sort((a,b)=>byCat[b]-byCat[a])[0]||"-";
+    const cont=document.getElementById("monthly-summary");
+    cont.innerHTML = `<span class="pill">الشهر: ${k}</span><span class="pill">الدخل: ${inc.toFixed(2)} ${cur}</span><span class="pill">المصروف${currentTagFilter!=="all"?" ("+(currentTagFilter==="essential"?"ضروري":"ترفيهي")+")":""}: ${sp.toFixed(2)} ${cur}</span><span class="pill">الصافي: ${net.toFixed(2)} ${cur}</span><span class="pill">أكثر فئة صرفًا: ${topCat}</span>`;
+    drawPie(byCat, sp);
+  }
+  function renderStatusTable(){
+    const d=ensureData(); const total=Object.values(d.categories).reduce((a,c)=>a+(c.balance||0),0);
+    let html=`<div class="chips"><span class="chip">العملة: ${d.currency}</span><span class="chip">إجمالي الأرصدة: ${total.toFixed(2)} ${d.currency}</span></div>`;
+    html+=`<table class="table" style="margin-top:10px"><thead><tr><th>الفئة</th><th>النسبة</th><th>الرصيد</th></tr></thead><tbody>`;
+    for(const name in d.categories){ const c=d.categories[name]; html+=`<tr><td>${name}</td><td>${(c.percent||0).toFixed(2)}%</td><td>${(c.balance||0).toFixed(2)} ${d.currency}</td></tr>`; }
+    html+=`</tbody></table>`;
+    document.getElementById("status").innerHTML = html;
+  }
+  function renderHistory(){
+    const d=ensureData(); if(!d.transactions.length){ document.getElementById("history").innerHTML=`<div class="muted">لا يوجد سجل بعد.</div>`; return; }
+    let h=`<table class="table" style="margin-top:10px"><thead><tr><th>الوقت</th><th>النوع</th><th>المبلغ</th><th>التفاصيل</th><th>تصنيف/مصدر</th><th>ملاحظة</th></tr></thead><tbody>`;
+    d.transactions.slice().reverse().forEach(t=>{ const detail=t.type==="TRANSFER"?`${t.category} → ${t.other}`:(t.category||"-"); const tagOrSrc = t.type==="SPEND" ? (t.tag===""?"—":(t.tag==="essential"?"ضروري":"ترفيهي")) : (t.source||"—"); h+=`<tr><td>${t.ts}</td><td>${t.type}</td><td>${t.amount.toFixed(2)} ${d.currency}</td><td>${detail}</td><td>${tagOrSrc}</td><td>${t.note||""}</td></tr>`; });
+    h+=`</tbody></table>`; document.getElementById("history").innerHTML=h;
+  }
+  function drawAxes(ctx,w,h,p){ ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--axis').trim()||"#334155"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(p,h-p); ctx.lineTo(w-p,h-p); ctx.moveTo(p,h-p); ctx.lineTo(p,p); ctx.stroke(); }
+  function clearCanvas(ctx,w,h){ ctx.save(); ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,w,h); ctx.restore(); }
+  function drawBalancesChart(){ const canvas=document.getElementById("chart-balances"); if(!canvas) return; const dpr=window.devicePixelRatio||1; const w=canvas.clientWidth*dpr, h=canvas.clientHeight*dpr; canvas.width=w; canvas.height=h; const ctx=canvas.getContext("2d"); clearCanvas(ctx,w,h); const d=ensureData(); const labels=Object.keys(d.categories); const values=labels.map(n=>d.categories[n].balance||0); const p=40*dpr; drawAxes(ctx,w,h,p); if(!labels.length) return; const maxVal=Math.max(10,...values); const plotW=w-p*2, plotH=h-p*2; const barW=plotW/labels.length*0.6; const step=plotW/labels.length; ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--info').trim()||"#60a5fa"; ctx.strokeStyle=getComputedStyle(document.body).getPropertyValue('--muted').trim()||"#94a3b8"; ctx.textAlign="center"; ctx.font=`${12*dpr}px system-ui`; labels.forEach((lab,i)=>{ const x=p+i*step+(step-barW)/2; const val=values[i]; const barH=(val/maxVal)*plotH; const y=h-p-barH; ctx.fillRect(x,y,barW,barH); ctx.save(); ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--fg')||"#cbd5e1"; ctx.translate(x+barW/2,h-p+14*dpr); ctx.rotate(-Math.PI/12); ctx.fillText(lab,0,0); ctx.restore(); ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--accent')||"#93c5fd"; ctx.fillText(val.toFixed(0), x+barW/2, y-6*dpr); }); }
+  function drawMonthlyChart(){ const canvas=document.getElementById("chart-monthly"); if(!canvas) return; const dpr=window.devicePixelRatio||1; const w=canvas.clientWidth*dpr, h=canvas.clientHeight*dpr; canvas.width=w; canvas.height=h; const ctx=canvas.getContext("2d"); clearCanvas(ctx,w,h); const d=ensureData(); const income={}, spend={}; d.transactions.forEach(t=>{ const k=monthKey(t.ts); if(!k) return; if(t.type==="INCOME") income[k]=(income[k]||0)+t.amount; if(t.type==="SPEND") spend[k]=(spend[k]||0)+t.amount; }); const months=Array.from(new Set([...Object.keys(income),...Object.keys(spend)])).sort(); if(!months.length) return; const p=40*dpr; drawAxes(ctx,w,h,p); const plotW=w-p*2, plotH=h-p*2; const maxVal=Math.max(10,...months.map(m=>Math.max(income[m]||0, spend[m]||0))); const stepX=months.length>1?plotW/(months.length-1):0; const yS=v=>h-p-(v/maxVal)*plotH; function drawSeries(map,color){ ctx.strokeStyle=color; ctx.lineWidth=2*dpr; ctx.beginPath(); months.forEach((m,i)=>{ const x=p+i*stepX; const y=yS(map[m]||0); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); }); ctx.stroke(); ctx.fillStyle=color; months.forEach((m,i)=>{ const x=p+i*stepX; const y=yS(map[m]||0); ctx.beginPath(); ctx.arc(x,y,3*dpr,0,Math.PI*2); ctx.fill(); }); } drawSeries(income, "#22c55e"); drawSeries(spend, "#ef4444"); ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--fg')||"#cbd5e1"; ctx.textAlign="center"; ctx.font=`${12*dpr}px system-ui`; months.forEach((m,i)=>{ const x=p+i*stepX; ctx.fillText(m, x, h-p+14*dpr); }); ctx.textAlign="left"; ctx.fillStyle="#22c55e"; ctx.fillRect(w-p-120*dpr, p-16*dpr, 10*dpr, 10*dpr); ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--fg')||"#cbd5e1"; ctx.fillText("دخل", w-p-105*dpr, p-7*dpr); ctx.fillStyle="#ef4444"; ctx.fillRect(w-p-60*dpr, p-16*dpr, 10*dpr, 10*dpr); ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--fg')||"#cbd5e1"; ctx.fillText("مصروف", w-p-45*dpr, p-7*dpr); }
+  function drawPie(byCat,total){ const canvas=document.getElementById("chart-pie"); const legend=document.getElementById("pie-legend"); if(!canvas||!legend) return; const dpr=window.devicePixelRatio||1; const w=canvas.clientWidth*dpr, h=canvas.clientHeight*dpr; canvas.width=w; canvas.height=h; const ctx=canvas.getContext("2d"); clearCanvas(ctx,w,h); legend.innerHTML=""; const entries=Object.entries(byCat).sort((a,b)=>b[1]-a[1]); if(!entries.length||total<=0){ ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--muted')||"#94a3b8"; ctx.textAlign="center"; ctx.font=`${14*dpr}px system-ui`; ctx.fillText("لا توجد مصاريف لهذا الشهر", w/2, h/2); return; } const colors=["#60a5fa","#f59e0b","#10b981","#ef4444","#a78bfa","#f472b6","#34d399","#fb7185","#22d3ee","#eab308"]; const cx=w/2, cy=h/2, r=Math.min(w,h)*0.36; let start=-Math.PI/2; entries.forEach(([name,val],i)=>{ const angle=(val/total)*Math.PI*2; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.fillStyle=colors[i%colors.length]; ctx.arc(cx,cy,r,start,start+angle); ctx.closePath(); ctx.fill(); start+=angle; const pill=document.createElement("span"); pill.className="pill"; pill.style.borderColor="var(--chip-border)"; pill.innerHTML=`<span style="display:inline-block;width:10px;height:10px;background:${colors[i%colors.length]};border-radius:2px;margin-inline-start:4px;margin-inline-end:6px"></span>${name}: ${(val/total*100).toFixed(1)}%`; legend.appendChild(pill); }); ctx.fillStyle=getComputedStyle(document.body).getPropertyValue('--fg')||"#cbd5e1"; ctx.textAlign="center"; ctx.font=`${14*dpr}px system-ui`; ctx.fillText("المصروفات", cx, cy); }
+
+  function renderAll(){ renderStatusTable(); renderMonthlySummary(); drawBalancesChart(); drawMonthlyChart(); renderHistory(); renderGlobalBar(); renderBackupUI(); }
+
+  // Export/Import
+  function exportJSON(){ const d=ensureData(); const blob=new Blob([JSON.stringify(d)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="envelope_budget_data.json"; a.click(); URL.revokeObjectURL(a.href); }
+  function exportCSV(){ const d=ensureData(); let rows=[["ts","type","amount","category","other","note","tag","source"]]; d.transactions.forEach(t=>rows.push([t.ts,t.type,t.amount,t.category||"",t.other||"",t.note||"",t.tag||"",t.source||""])); const csv=rows.map(r=>r.map(x=>`"${String(x).replace(/"/g,'""')}"`).join(",")).join("\n"); const blob=new Blob([csv],{type:"text/csv"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="transactions.csv"; a.click(); URL.revokeObjectURL(a.href); }
+  function importJSON(ev){ const file=ev.target.files[0]; if(!file) return; const reader=new FileReader(); reader.onload=e=>{ try{ const data=JSON.parse(e.target.result); if(!data||!data.categories) throw new Error("شكل ملف غير صحيح"); save(data); document.getElementById("cats").innerHTML=""; const names=Object.keys(data.categories); if(names.length) names.forEach(n=>addCatRow(n, data.categories[n].percent)); refreshSelectors(); renderAll(); alert("تم الاستيراد بنجاح ✅"); }catch(err){ alert("فشل الاستيراد: "+err.message); } }; reader.readAsText(file,"utf-8"); }
+
+  // Tag filter & month picker
+  function setTagFilter(tag){ currentTagFilter = tag; document.querySelectorAll("#tag-filters .chip").forEach(ch=>ch.style.outline="none"); const el=[...document.querySelectorAll("#tag-filters .chip")].find(c=>c.getAttribute("data-tag")==tag); if(el) el.style.outline="2px solid var(--accent)"; renderMonthlySummary(); }
+  function onMonthChange(){ renderMonthlySummary(); }
+
+  // Quick modal
+  function openQuick(){ refreshSelectors(); document.getElementById("quick-modal").style.display="flex"; }
+  function closeQuick(){ document.getElementById("quick-modal").style.display="none"; }
+  function quickSpend(){ const cat=document.getElementById("quick-cat").value; const amt=parseFloat(document.getElementById("quick-amt").value||"0"); const tag=document.getElementById("quick-tag").value||""; const note=document.getElementById("quick-note").value||""; if(!(amt>0)){ alert("أدخل مبلغًا صحيحًا"); return; } const d=ensureData(); if(!d.categories[cat]){ alert("الفئة غير موجودة"); return; } if(d.categories[cat].balance<amt){ if(!confirm("الرصيد غير كافٍ. متابعة؟")) return; } d.categories[cat].balance=Math.round((d.categories[cat].balance-amt)*100)/100; d.transactions.push({ ts:nowIso(), type:"SPEND", amount:amt, category:cat, tag, note }); save(d); closeQuick(); renderAll(); alert("تم الصرف السريع ✅"); }
+
+  // Theme + init
+  function initUI(){
+    applyTheme();
+    const cfg=loadCfg();
+    document.getElementById("theme-toggle").addEventListener("change", onThemeChange);
+    const low = cfg.lowThreshold||0; const lowInput=document.getElementById("low-threshold"); if(lowInput) lowInput.value = low || "";
+    const existing=ensureData(); document.getElementById("currency").value=existing.currency||"DZD";
+    const names=Object.keys(existing.categories); const catsWrap=document.getElementById("cats"); catsWrap.innerHTML="";
+    if(names.length){ names.forEach(n=>addCatRow(n, existing.categories[n].percent)); } else { addCatRow("ادخار","40"); addCatRow("البيت","20"); addCatRow("مشروع","25"); addCatRow("دين","10"); addCatRow("ترفيه","5"); }
+    refreshSelectors();
+    setTagFilter("all");
+    const mp=document.getElementById("month-picker"); if(mp){ const k=currentMonthKey(); mp.value = k; mp.addEventListener("change", onMonthChange); }
+    const sel=document.getElementById('backup-frequency'); if(sel){ sel.addEventListener('change', onBackupFreqChange); }
+    maybeAutoBackup();
+    renderAll();
+  }
+
+  // Expose globals for onclick
+  window.addCatRow=addCatRow; window.deleteCatRow=deleteCatRow; window.recalcSum=recalcSum; window.saveInitial=saveInitial;
+  window.addIncome=addIncome; window.spend=spend; window.transfer=transfer;
+  window.exportJSON=exportJSON; window.exportCSV=exportCSV; window.importJSON=(ev)=>importJSON(ev);
+  window.showTab=(name)=>{ document.querySelectorAll("main section").forEach(s=>s.classList.add("hidden")); document.getElementById("tab-"+name).classList.remove("hidden"); document.querySelectorAll(".tabs button").forEach(b=>b.classList.remove("active")); document.querySelector(`.tabs button[data-tab="${name}"]`).classList.add("active"); if(name==="status") requestAnimationFrame(()=>{ renderAll(); }); };
+  window.undoLast=undoLast; window.setTagFilter=setTagFilter;
+  window.backupNow=backupNow; window.copyJSON=copyJSON; window.downloadBackup=downloadBackup; window.doRestore=doRestore; window.doDeleteBackup=doDeleteBackup;
+  window.openQuick=openQuick; window.closeQuick=closeQuick; window.quickSpend=quickSpend;
+
+  document.addEventListener("DOMContentLoaded", initUI);
+})();</script>
+
+<!-- === Patch: redraw on size/orientation for charts === -->
+<script>
+  (function(){
+    function rerenderIfStatus(){
+      var active = document.querySelector('.tabs button.active');
+      if (active && active.dataset && active.dataset.tab === 'status' && typeof window.renderAll === 'function') {
+        window.renderAll();
+      }
+    }
+    window.addEventListener('resize', rerenderIfStatus);
+    window.addEventListener('orientationchange', function(){ setTimeout(rerenderIfStatus, 200); });
+  })();
+</script>
+<!-- === End Patch === -->
+
+</body>
+</html>
